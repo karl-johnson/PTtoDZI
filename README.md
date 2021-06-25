@@ -1,5 +1,5 @@
 # PTtoDZI
-Tool to generate DZI format panoramas directly from source images and a PTGUI project file. This allows creation of DZI panoramas for web viewing without having to stitch a single giant image and then break it up into DZI tiles, as is normal for smaller panoramas. 
+Tool to generate DZI format panoramas directly from source images and a PTGUI project file. This allows creation of DZI panoramas for web viewing without having to stitch a single giant image and then break it up into DZI tiles, as is normal for smaller panoramas. It also makes this process require less manual effort.
 
 ## Motivation
 
