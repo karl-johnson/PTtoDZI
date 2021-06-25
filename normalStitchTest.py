@@ -1,6 +1,4 @@
-import json
-import os
-import math
+import json, os, math, subprocess
 pts_path = 'test/20210612_147megapixels/20210612_pano2.pts'
 output_path, pts_filename = os.path.split(pts_path)
 #print(output_path)
@@ -28,6 +26,8 @@ width_px = round(math.sqrt((width_deg/height_deg)*outputsize))
 height_px = round(math.sqrt((height_deg/width_deg)*outputsize))
 nona_script.write('w' + str(width_px) + ' ')
 nona_script.write('h' + str(height_px) + ' ')
+# now find and apply crop dimensions
+
 nona_script.write('f1 ') # TODO MAKE THIS AUTOMATICALLY SWITCH
 nona_script.write('v' + str(data['panoramaparams']['hfov']) + ' ')
 nona_script.write('u50 ')
@@ -38,14 +38,11 @@ globallenses = data['globallenses']
 imagegroups = data['imagegroups']
 for image in imagegroups:
     nona_script.write('i f0 ') # TODO fix projection
-# params to add: d e g t Eev Er Eb Vm Va-d
+# params to add: g t Eev Er Eb Vm Va-d
     lens = globallenses[image['globallens']]
-    #print(lens)
-
-    diagfov = math.degrees(2*math.atan(lens['lens']['params']['sensordiagonal']/(2*lens['lens']['params']['focallength'])))
     aspect_ratio = image['size'][1]/image['size'][0]
-    hfov = diagfov*math.sqrt(1/(1+aspect_ratio**2))
-    #hfov = 20
+    sensorhoriz = lens['lens']['params']['sensordiagonal']*math.sqrt(1/(1+aspect_ratio**2));
+    hfov = math.degrees(2*math.atan(sensorhoriz/(2*lens['lens']['params']['focallength'])))
     nona_script.write('v'+str(hfov)+' ')
     nona_script.write('y'+str(image['position']['params']['yaw'])+' ')
     nona_script.write('p'+str(image['position']['params']['pitch'])+' ')
@@ -53,10 +50,28 @@ for image in imagegroups:
     nona_script.write('a'+str(lens['lens']['params']['a'])+' ')
     nona_script.write('b'+str(lens['lens']['params']['b'])+' ')
     nona_script.write('c'+str(lens['lens']['params']['c'])+' ')
+    if image['size'][0] > image['size'][1]:
+        nona_script.write('d'+str(lens['lens']['shift']['longside'])+' ')
+        nona_script.write('e'+str(lens['lens']['shift']['shortside'])+' ')
+    else:
+        nona_script.write('d'+str(lens['shift']['params']['shortside'])+' ')
+        nona_script.write('e'+str(lens['shift']['params']['longside'])+' ')
+    nona_script.write('Vm1 ') # DETECT OR DISABLE
+    nona_script.write('Va'+str(lens['photometric']['vignettingcoefficients'][0])+' ')
+    nona_script.write('Vb'+str(lens['photometric']['vignettingcoefficients'][1])+' ')
+    nona_script.write('Vc'+str(lens['photometric']['vignettingcoefficients'][2])+' ')
+    nona_script.write('Vd'+str(lens['photometric']['vignettingcoefficients'][3])+' ')
+    nona_script.write('Ra'+str(lens['photometric']['emorparams'][0])+' ')
+    nona_script.write('Rb'+str(lens['photometric']['emorparams'][1])+' ')
+    nona_script.write('Rc'+str(lens['photometric']['emorparams'][2])+' ')
+    nona_script.write('Rd'+str(lens['photometric']['emorparams'][3])+' ')
+    nona_script.write('Re'+str(lens['photometric']['emorparams'][4])+' ')
 
     nona_script.write('n\"'+image['images'][0]['filename']+'\" \n')
+nona_script.write('*')
 # reference nona command
 # nona -v -d -g -o nona_stitch_out nona_temp_script.txt
-nona_script.write('*')
 # nona -o nona_stitch_out nona_stitch.txt
-# TODO DELETE TEMP SCRIPT
+#
+# enblend -o emblend.jpg emblend_temp\e*
+# TODO DELETE TEMP
