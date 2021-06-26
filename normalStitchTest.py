@@ -1,5 +1,6 @@
 import json, os, math, subprocess
-pts_path = 'test/20210612_147megapixels/20210612_pano2.pts'
+pts_path = os.path.join('test','20210612_147megapixels','20210612_pano2.pts')
+#pts_path = 'C:/Users/k/Panorama_stitching/PTtoDZItesting/20210612/20210612_pano2.pts'
 output_path, pts_filename = os.path.split(pts_path)
 #print(output_path)
 with open(pts_path) as f:
@@ -22,8 +23,10 @@ else:
     print("Please select \"Megapixels\" in the \"Create Panorama\" Menu of PTGui.")
 width_deg = data['panoramaparams']['hfov']
 height_deg = data['panoramaparams']['vfov']
-width_px = round(math.sqrt((width_deg/height_deg)*outputsize))
-height_px = round(math.sqrt((height_deg/width_deg)*outputsize))
+# this is only for cylindrical projection!
+pano_aspectratio = math.radians(width_deg)/(2*math.tan(math.radians(0.5*height_deg)))
+width_px = round(math.sqrt(pano_aspectratio*outputsize))
+height_px = round(math.sqrt(outputsize/pano_aspectratio))
 nona_script.write('w' + str(width_px) + ' ')
 nona_script.write('h' + str(height_px) + ' ')
 # now find and apply crop dimensions
@@ -66,11 +69,20 @@ for image in imagegroups:
     nona_script.write('Rc'+str(lens['photometric']['emorparams'][2])+' ')
     nona_script.write('Rd'+str(lens['photometric']['emorparams'][3])+' ')
     nona_script.write('Re'+str(lens['photometric']['emorparams'][4])+' ')
-
     nona_script.write('n\"'+image['images'][0]['filename']+'\" \n')
 nona_script.write('*')
+nona_script.close()
 # reference nona command
 # nona -v -d -g -o nona_stitch_out nona_temp_script.txt
+process = subprocess.Popen(
+    ["nona", "-v", "-g", "--seam=blend", "-o",  os.path.join(output_path,"output_fixed_ratio"), nona_script_path],
+     stdout=subprocess.PIPE)
+while True:
+    output = process.stdout.readline()
+    if process.poll() is not None:
+        break
+    if output:
+        print(output.strip)
 # nona -o nona_stitch_out nona_stitch.txt
 #
 # enblend -o emblend.jpg emblend_temp\e*
