@@ -1,4 +1,4 @@
-import json, os, math, subprocess
+import json, os, math, subprocess, time
 def getResolutionInfo(pts):
     # get information about resolution and geometry of panorama
     return_dict = dict()
@@ -24,49 +24,63 @@ def getResolutionInfo(pts):
     return_dict['crop'] = crop
     return return_dict
 
-def stitchPTGuiRegion(region, pts, path_out):
+def stitchPTGuiRegion(region, pts, file, PTGUI_EXE_PATH):
     # stitch region of panorama to file using PTGui
     # region: [left, top, width, height], all in px, all relative
-    #   to current pano extent (including crop)
+    #   to current pano extent in pts (including crop)
     # pts: dictionary read from .pts json
-    # path_out: location to save final image (including filename)
-
+    # file: location to save final image (including file)
     # TODO INPUT SANITIZATION
-
+    if region[2] > 65535 || region[3] > 65535:
+        print("Error: JPEG does not support region size greater than 65535 ("
+            +str(region[2])+"x"+str(region[3]) + ")")
+        exit() # TODO throw exception instead
     # get geometry of panorama currently in pts
     resolutionInfo = getResolutionInfo(pts)
+    if region[2] > resolutionInfo['h']:
+        print("Warning: region width ("+str(region[2])+
+            ") greater than panorama width ("+resolutionInfo['h']+")")
+    if region[3] > resolutionInfo['v']:
+        print("Warning: region height ("+str(region[3])+
+            ") greater than panorama height ("+resolutionInfo['v']+")")
     crop = resolutionInfo['crop']
     hopt = resolutionInfo['hopt']
     vopt = resolutionInfo['vopt']
-    # LOOKS LIKE THIS MIGHT BE WRONG!
+    # calculate crop values to yield specified region
     new_crop = [crop[0] + region[0]/hopt,
         crop[1] + region[1]/vopt,
         crop[0] + (region[0]+region[2])/hopt,
         crop[1] + (region[1]+region[3])/vopt]
-    new_res = desired_output**2;
+    new_res = region[2]*region[3];
     # change json and save
     new_pts = pts
     new_pts['project']['panoramaparams']['outputcrop'] = new_crop
     new_pts['project']['outputsize']['pixels'] = new_res
-    new_pts['project']['panoramaparams']['outputfile'] = path_out
-    with open(pts_out, 'w') as outfile:
-        json.dump(new_pts, outfile)
+    new_pts['project']['panoramaparams']['fileformat'] = "jpeg" # TODO make opt
+    new_pts['project']['panoramaparams']['outputfile'] = os.path.abspath(file)
+    pts_file = os.path.splitext(file)[0]+"_temp_"+str(region[2])+"x"\
+        +str(region[3])+"at"+str(region[0])+"_"+str(region[1])+".pts"
+    with open(pts_file, 'w') as pts_file_handle:
+        json.dump(new_pts, pts_file_handle)
     # call PTGUI
     # command working: & 'C:\Program Files\PTGui\PTGui.exe' -stitchnogui [FILE]
-    process = subprocess.Popen([PTGUI_EXE_PATH, "-stitchnogui", pts_out], stdout=subprocess.PIPE)
-    #process = subprocess.Popen(["PTGui.exe", "-stitchnogui", pts_out], stdout=subprocess.PIPE)
+    print("Began stitching "+str(region[2])+"x"+str(region[3])+" region at (" \
+        +str(region[0])+", "+str(region[1])+")")
+    start = time.time()
+    process = subprocess.Popen([PTGUI_EXE_PATH, "-stitchnogui", pts_file], stdout=subprocess.PIPE)
+    process.wait()
+    print("Stitching complete (" + str(time.time() - start) + " seconds)")
+    os.remove(pts_file) # remove PTGui file
 
 PTGUI_EXE_PATH = os.path.join('c:',os.sep,'Program Files','PTGui','PTGui.exe')
 pts_in = os.path.join('test','20210612_147megapixels','20210612_pano2.pts')
-pts_out = os.path.join('test','20210612_147megapixels','20210612_pytonedit.pts')
 image_out = os.path.join('test','20210612_147megapixels','outputtest.jpg')
 # command working: & 'C:\Program Files\PTGui\PTGui.exe' -stitchnogui [FILE]
 pts_path, pts_filename = os.path.split(pts_in)
 with open(pts_in) as f:
     pts = json.load(f)
-
 # filter out incompatible projections
 if pts['project']['panoramaparams']['projection'] != 'cylindrical':
     print("Error: non-cylindrical projection")
     exit()
-stitchPTGuiRegion([0, 0, 4096, 4096], pts, image_out)
+stitchPTGuiRegion([0, 0, 4096, 4096], pts, image_out, PTGUI_EXE_PATH)
