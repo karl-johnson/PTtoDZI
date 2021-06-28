@@ -1,4 +1,12 @@
 import json, os, math, subprocess, time
+PTGUI_EXE_PATH = os.path.join('c:',os.sep,'Program Files','PTGui','PTGui.exe')
+
+def load(pts_in):
+    # TODO check if valid file
+    with open(pts_in) as f:
+        pts = json.load(f)
+    return pts
+
 def getResolutionInfo(pts):
     # get information about resolution and geometry of panorama
     return_dict = dict()
@@ -24,14 +32,15 @@ def getResolutionInfo(pts):
     return_dict['crop'] = crop
     return return_dict
 
-def stitchPTGuiRegion(region, pts, file, PTGUI_EXE_PATH):
+def stitch(pts, pts_file, img_file, region = [0,0,0,0]):
     # stitch region of panorama to file using PTGui
     # region: [left, top, width, height], all in px, all relative
     #   to current pano extent in pts (including crop)
     # pts: dictionary read from .pts json
     # file: location to save final image (including file)
     # TODO INPUT SANITIZATION
-    if region[2] > 65535 || region[3] > 65535:
+    # TODO NULL REGION STITCHES WHOLE PANORAMA
+    if region[2] > 65535 or region[3] > 65535:
         print("Error: JPEG does not support region size greater than 65535 ("
             +str(region[2])+"x"+str(region[3]) + ")")
         exit() # TODO throw exception instead
@@ -46,41 +55,31 @@ def stitchPTGuiRegion(region, pts, file, PTGUI_EXE_PATH):
     crop = resolutionInfo['crop']
     hopt = resolutionInfo['hopt']
     vopt = resolutionInfo['vopt']
-    # calculate crop values to yield specified region
-    new_crop = [crop[0] + region[0]/hopt,
-        crop[1] + region[1]/vopt,
-        crop[0] + (region[0]+region[2])/hopt,
-        crop[1] + (region[1]+region[3])/vopt]
-    new_res = region[2]*region[3];
-    # change json and save
     new_pts = pts
-    new_pts['project']['panoramaparams']['outputcrop'] = new_crop
-    new_pts['project']['outputsize']['pixels'] = new_res
+    # change json and save
+    if region != [0,0,0,0]:
+        # calculate crop values to yield specified region
+        new_crop = [crop[0] + region[0]/hopt,
+            crop[1] + region[1]/vopt,
+            crop[0] + (region[0]+region[2])/hopt,
+            crop[1] + (region[1]+region[3])/vopt]
+        new_res = region[2]*region[3];
+        new_pts['project']['panoramaparams']['outputcrop'] = new_crop
+        new_pts['project']['outputsize']['pixels'] = new_res
     new_pts['project']['panoramaparams']['fileformat'] = "jpeg" # TODO make opt
-    new_pts['project']['panoramaparams']['outputfile'] = os.path.abspath(file)
-    pts_file = os.path.splitext(file)[0]+"_temp_"+str(region[2])+"x"\
-        +str(region[3])+"at"+str(region[0])+"_"+str(region[1])+".pts"
+    new_pts['project']['panoramaparams']['outputfile'] = os.path.abspath(img_file)
+    pts_file = os.path.splitext(pts_file)[0]+"_pytemp.pts"
     with open(pts_file, 'w') as pts_file_handle:
         json.dump(new_pts, pts_file_handle)
     # call PTGUI
     # command working: & 'C:\Program Files\PTGui\PTGui.exe' -stitchnogui [FILE]
-    print("Began stitching "+str(region[2])+"x"+str(region[3])+" region at (" \
-        +str(region[0])+", "+str(region[1])+")")
+    if region != [0,0,0,0]:
+        print("Began stitching "+str(region[2])+"x"+str(region[3])+" region at (" \
+            +str(region[0])+", "+str(region[1])+")")
+    else:
+        print("Began stitching (full panorama)")
     start = time.time()
     process = subprocess.Popen([PTGUI_EXE_PATH, "-stitchnogui", pts_file], stdout=subprocess.PIPE)
     process.wait()
     print("Stitching complete (" + str(time.time() - start) + " seconds)")
     os.remove(pts_file) # remove PTGui file
-
-PTGUI_EXE_PATH = os.path.join('c:',os.sep,'Program Files','PTGui','PTGui.exe')
-pts_in = os.path.join('test','20210612_147megapixels','20210612_pano2.pts')
-image_out = os.path.join('test','20210612_147megapixels','outputtest.jpg')
-# command working: & 'C:\Program Files\PTGui\PTGui.exe' -stitchnogui [FILE]
-pts_path, pts_filename = os.path.split(pts_in)
-with open(pts_in) as f:
-    pts = json.load(f)
-# filter out incompatible projections
-if pts['project']['panoramaparams']['projection'] != 'cylindrical':
-    print("Error: non-cylindrical projection")
-    exit()
-stitchPTGuiRegion([0, 0, 4096, 4096], pts, image_out, PTGUI_EXE_PATH)
