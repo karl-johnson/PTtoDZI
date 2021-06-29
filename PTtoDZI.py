@@ -1,7 +1,7 @@
 import os, PTGUItools, DZItools, misctools
-STITCH_TILE_SIZE = 32768 # easy if power of 2
 DZI_TILE_SIZE = 256
-DZI_TILE_OVERLAP = 1
+DZI_TILE_OVERLAP = 0
+STITCH_TILE_SIZE = 8192 # must be a power of 2 multiple of DZI tile size
 pts_in = os.path.join('test','20210612_147megapixels','20210612_pano2.pts')
 image_out = os.path.join('test','20210612_147megapixels','dzi_test','stitch.jpg')
 dzi_out = os.path.join('test','20210612_147megapixels','dzi_test','stitch_dzi.zip')
@@ -14,15 +14,21 @@ if pts['project']['panoramaparams']['projection'] != 'cylindrical':
     exit()
 
 # stitch panorama segments using PTGUI
-res_info = getResolutionInfo(pts)
-stitch_regions = misctools.getTilingRegions(res_info.h, res_info.v, STITCH_TILE_SIZE)
+res_info = PTGUItools.getResolutionInfo(pts)
+stitch_regions, columns = misctools.getTilingRegions(res_info['h'],
+    res_info['v'], STITCH_TILE_SIZE)
+dzi_filenames = []
 for region in stitch_regions:
-    # UPDATE DZI FILENAME AND ADD DZIs TO ARRAY
+    image_out = os.path.join(pts_path, "dzi_temp", "temp_stitch.jpg")
     PTGUItools.stitch(pts, pts_in, image_out, region)
+    # UPDATE DZI FILENAME AND ADD DZIs TO ARRAY
+    dzi_out = os.path.join(pts_path,"dzi_temp",
+        "dzi"+str(int(region[0]/STITCH_TILE_SIZE))+"_"
+        +str(int(region[1]/STITCH_TILE_SIZE)))
+    dzi_filenames.append(dzi_out)
     # convert output to DZI using VIPS
     DZItools.convert(image_out, dzi_out, 256, 0)
     # delete image_out
-
+    os.remove(image_out)
 # MERGE DZI
-# REMEMBER THAT LOWER RIGHT CORNER HAS TO BE TREATED SPECIAL
-DZItools.merge(dzi_list, final_output_location)
+# DZItools.merge(dzi_list, columns, final_output_location)

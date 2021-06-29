@@ -1,4 +1,4 @@
-import json, os, math, subprocess, time
+import json, os, math, subprocess, time, copy
 PTGUI_EXE_PATH = os.path.join('c:',os.sep,'Program Files','PTGui','PTGui.exe')
 
 def load(pts_in):
@@ -55,7 +55,10 @@ def stitch(pts, pts_file, img_file, region = [0,0,0,0]):
     crop = resolutionInfo['crop']
     hopt = resolutionInfo['hopt']
     vopt = resolutionInfo['vopt']
-    new_pts = pts
+    #print("crop " + str(crop))
+    #print("hopt " + str(hopt))
+    #print("vopt " + str(vopt))
+    new_pts = copy.deepcopy(pts)
     # change json and save
     if region != [0,0,0,0]:
         # calculate crop values to yield specified region
@@ -63,12 +66,15 @@ def stitch(pts, pts_file, img_file, region = [0,0,0,0]):
             crop[1] + region[1]/vopt,
             crop[0] + (region[0]+region[2])/hopt,
             crop[1] + (region[1]+region[3])/vopt]
+        #print("new crop " + str(new_crop))
         new_res = region[2]*region[3];
         new_pts['project']['panoramaparams']['outputcrop'] = new_crop
         new_pts['project']['outputsize']['pixels'] = new_res
     new_pts['project']['panoramaparams']['fileformat'] = "jpeg" # TODO make opt
     new_pts['project']['panoramaparams']['outputfile'] = os.path.abspath(img_file)
-    pts_file = os.path.splitext(pts_file)[0]+"_pytemp.pts"
+    pts_file = (os.path.splitext(pts_file)[0]+"_pytemp_"+
+        str(region[2])+"x"+str(region[3])+"at"+
+        str(region[0])+"_"+str(region[1])+".pts")
     with open(pts_file, 'w') as pts_file_handle:
         json.dump(new_pts, pts_file_handle)
     # call PTGUI

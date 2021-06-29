@@ -12,10 +12,13 @@ def convert(image_in, dzi_out, tile_size, overlap):
     process.wait()
     print("DZI save complete (" + str(time.time() - start) + " seconds)")
 
-# merge(2D ARRAY OF DZI FORMATS)
-# read all inputs to determine format
-# for each dzi level... (from most detailed to first detail with 1 tile)
-# for each row
-# for each column
-# if corner or edge, append pixels to edge
-# rename tile to proper name
+def merge(files, columns):
+    # simple abstraction to invoke merger, written in C++ for speed
+    # read all inputs to determine format
+    # determine number of levels in final output
+    # for each dzi level... (from most detailed to first detail with 1 tile)
+    # for each row
+    # for each column
+    # if corner or edge, append pixels to edge
+    # rename tile to proper name
+    # REMEMBER THAT LOWER RIGHT CORNER HAS TO BE TREATED SPECIAL
