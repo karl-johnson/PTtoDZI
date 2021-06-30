@@ -23,7 +23,7 @@ for region in stitch_regions:
     PTGUItools.stitch(pts, pts_in, image_out, region)
     # UPDATE DZI FILENAME AND ADD DZIs TO ARRAY
     dzi_out = os.path.join(pts_path,"dzi_temp",
-        "dzi"+str(int(region[0]/STITCH_TILE_SIZE))+"_"
+        str(int(region[0]/STITCH_TILE_SIZE))+"_"
         +str(int(region[1]/STITCH_TILE_SIZE)))
     dzi_filenames.append(dzi_out)
     # convert output to DZI using VIPS
@@ -31,4 +31,4 @@ for region in stitch_regions:
     # delete image_out
     os.remove(image_out)
 # MERGE DZI
-# DZItools.merge(dzi_list, columns, final_output_location)
+DZItools.merge(dzi_filenames, final_output_location)
