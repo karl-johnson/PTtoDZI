@@ -7,7 +7,11 @@
 
 #include <cstdio>
 #include <string>
+#include <vector>
 #include "dziSingle.h"
+#include <filesystem>
+#include <iostream>
+
 
 class dziMosaic {
 public:
@@ -16,12 +20,15 @@ public:
     }
     dziSingle merge(std::string outPath);
     // members:
-    // source tile size
-    // source supertile size
-    // source mosaic size
-    // path to root of mosaic
+    // TODO CALCULATE ALL OF THESE IN CONSTRUCTOR
+    size_t tileSize; // source tile size
+    size_t mosaicSize;// source supertile size (spacing of mosaic tiles)
+    size_t mosaicX, mosaicY; // number of mosaic tiles
+    size_t totalXResolution, totalYResolution; // combined size of mosaic
+    size_t inputLevels, outputLevels; // number of levels in input/output and their difference
+    std::vector<std::vector<std::string>> sourcePaths; // paths to where individual DZI pyramids are stored
 private:
-    void lowerMerge(std::string outPath);
+    void lowerMerge(std::string outPath, size_t level)
     void higherMerge(std::string outPath);
 };
 

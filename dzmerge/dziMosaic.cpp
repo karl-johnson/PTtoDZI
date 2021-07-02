@@ -4,6 +4,7 @@
 
 #include "dziMosaic.h"
 
+
 dziSingle dziMosaic::merge(std::string outPath) {
     dziSingle outputDzi = dziSingle(outPath);
 /*
@@ -14,7 +15,7 @@ dziSingle dziMosaic::merge(std::string outPath) {
     // write XML
 }
 
-void dziMosaic::lowerMerge(std::string outPath) {
+void dziMosaic::lowerMerge(std::string outPath, size_t level) {
 /*
  * Merge single lower index DZI level, assuming all higher levels have already been merged
  * The tiles resulting from this merge span multiple input pyramids
@@ -22,6 +23,36 @@ void dziMosaic::lowerMerge(std::string outPath) {
  * Fortunately even for the most extreme cases this will only produce a few hundred images
  *      and disk time will dominate over processing time
  */
+    size_t row, rows, col, cols, adjustedTileSize, tilesPerMosaic;
+    adjustedTileSize = tileSize << (outputLevels - level);
+    // use truncation of casting to size_t + 1 for ceil
+    rows = static_cast<size_t>(totalYResolution/adjustedTileSize) + 1;
+    cols = static_cast<size_t>(totalXResolution/adjustedTileSize) + 1;
+    tilesPerMosaic = mosaicSize/adjustedTileSize;
+    std::string sourceTilePath, destTilePath;
+    size_t pyrX, pyrY;
+    for(row = 0; row < rows; row++) {
+        // IF ROW IS TOP_BOTTOM EDGE
+        // FIX TWO ROWS AT ONCE
+        for(col = 0; col < cols; col++) {
+            pyrX = col % tilesPerMosaic; pyrY = row % tilesPerMosaic;
+            // TODO: fix details of path formatting
+            sourceTilePath = sourcePaths[col/tilesPerMosaic][row/tilesPerMosaic] +
+                    std::to_string(level - (outputLevels - inputLevels)) + '\\' +
+                    std::to_string(pyrX) + '_' + std::to_string(pyrY) + ".jpeg";
+            destTilePath = outPath + "_files\\" + std::to_string(level) +
+                    std::to_string(col) + '_' + std::to_string(row) + ".jpeg";
+            // TODO CHECK IF OVERLAP FIX IS NEEDED AND PERFORM IT
+            // if(IS_LEFT_RIGHT_EDGE)
+                // CALL EDGE MERGE TO FIX TWO TILES LEFT/RIGHT
+
+            try {
+                std::filesystem::rename(sourceTilePath, destTilePath);
+            } catch (std::filesystem::filesystem_error& e) {
+                std::cout << e.what() << '\n';
+            }
+        }
+    }
     // FOR EACH ROW (OF OUTPUT)
         // FOR EACH COLUMN
             // GET IMAGES COMPRISING CORE OF TILE FROM ALREADY MERGED HIGHER LEVELS
