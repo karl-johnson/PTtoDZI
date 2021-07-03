@@ -8,6 +8,9 @@ def load(pts_in):
     return pts
 
 def getResolutionInfo(pts):
+    if pts['project']['panoramaparams']['projection'] != 'cylindrical':
+        print("Error: non-cylindrical projection")
+        exit()
     # get information about resolution and geometry of panorama
     return_dict = dict()
     if 'pixels' in pts['project']['outputsize']:

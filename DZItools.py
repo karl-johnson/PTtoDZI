@@ -1,9 +1,9 @@
 import os, subprocess, time, math, copy
 import xml.etree.ElementTree as ET
 VIPS_EXE_PATH = os.path.join('c:',os.sep,'include','VIPS','bin','vips.exe')
-#vipshome = os.path.join('c:',os.sep,'Program Files','VIPS','bin')
-#os.environ['PATH'] = vipshome + ';' + os.environ['PATH']
-#import pyvips
+vipshome = os.path.join('c:',os.sep,'include','VIPS','bin')
+os.environ['PATH'] = vipshome + ';' + os.environ['PATH']
+import pyvips
 def convert(image_in, dzi_out, tile_size, overlap):
     # TODO input sanitization
     print("Began DZI save")
@@ -33,6 +33,49 @@ def XMLwrite(dict_in, out_file, reference):
     tree.getroot().attrib['Overlap'] = str(dict_in['overlap'])
     tree.getroot().attrib['TileSize'] = str(dict_in['tile_size'])
     tree.write(out_file)
+
+def merge_to_lower_level(path, level, overlap):
+    if overlap != 0:
+        print('Overlap is not yet supported in merge_to_lower_level!')
+        exit()
+    last_path = os.path.join(path, str(level+1))
+    new_path = os.path.join(path, str(level))
+    # TODO support overlap
+    # populate the specified DZI level from the next higher numbered level
+        # using only the tiles already in path
+    # due to DZI format, we actually don't need any row/col a priori info!
+    # we just need to merge until we run out of files
+    # if this is too slow it can be changed but this is nice and elegant
+    row = int(0)
+    col = int(0)
+    while os.path.isfile(os.path.join(last_path,"0_"+str(2*row)+".jpeg")):
+        while os.path.isfile(os.path.join(last_path,str(2*col)+'_'+str(2*row)+".jpeg")):
+            # load in images comprising single output tile
+            images = []
+            for y in range(2):
+                for x in range(2):
+                    image_path = os.path.join(last_path,str(2*col + x)+'_'+str(2*row + y)+".jpeg")
+                    if os.path.isfile(image_path):
+                        images.append(pyvips.Image.new_from_file(image_path))
+            # join images
+            if len(images) == 4:
+                # arrayjoin
+                out = pyvips.Image.arrayjoin(images, across = 2)
+                # calculate crop and perform (only if necessary)
+                out = out.crop(0,0,images[0].width+images[3].width,images[0].height+images[3].height)
+            elif len(images) == 2: # literally an 'edge' case! hahahahahahahaha
+                # imo most efficient way to check dir is to see if 1_0 exists
+                dir = 'horizontal' if os.path.isfile(os.path.join(last_path,str(2*col + 1)+'_'+str(2*row + 0)+".jpeg")) else 'vertical'
+                out = images[0].join(images[1], dir, expand = True)
+                # simple join
+            else: # single image
+                out = images[0]
+            # downscale
+            out = out.resize(0.5)
+            # save output
+            out.write_to_file(os.path.join(new_path,str(col)+'_'+str(row)+".jpeg"))
+            col += 1
+        row += 1
 
 def merge(dzi_paths, destination):
     files_dir = destination + '_files';
@@ -94,8 +137,8 @@ def merge(dzi_paths, destination):
     # first create directories
     if not os.path.isdir(files_dir):
         os.mkdir(files_dir)
-    for level in range(tot_levels):
-        new_dir = os.path.join(files_dir, str(level+1))
+    for level in range(tot_levels + 1):
+        new_dir = os.path.join(files_dir, str(level))
         if not os.path.isdir(new_dir):
             os.mkdir(new_dir)
     level = tot_levels
@@ -125,16 +168,18 @@ def merge(dzi_paths, destination):
     print("Higher level conversion complete: " +
         str(files_operations) + " moves in " + str(elapsed) + " seconds = " +
         str(files_operations/elapsed) + " files/sec")
-
-    # cross over level - always has to append overlap but no sever merging
-    # for the rest of the levels, must use VIPS to stitch together next lower level from higher levels
-    #while level >= 0:
-
-
+    # for the rest of the levels, use VIPS to stitch together next lower level from higher levels
+    start = time.time()
+    while level >= 0:
+        print("Level " + str(level))
+        merge_to_lower_level(files_dir, level, 0)
+        level -= 1
+    elapsed = time.time() - start
+    print("Lower level conversion complete in " + str(elapsed) + " seconds")
     # save .dzi XML file
     dzi_info_out = copy.deepcopy(dzi_info)
-    dzi_info['width'] = res_x
-    dzi_info['height'] = res_y
+    dzi_info_out['width'] = res_x
+    dzi_info_out['height'] = res_y
     XMLwrite(dzi_info_out, destination + '.dzi', dzi_paths[0] + '.dzi')
 #dzi_filenames = ['test\\20210612_147megapixels\\dzi_temp\\0_0', 'test\\20210612_147megapixels\\dzi_temp\\1_0', 'test\\20210612_147megapixels\\dzi_temp\\2_0']
 #merge(dzi_filenames, dzi_out)
