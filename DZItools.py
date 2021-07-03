@@ -136,11 +136,11 @@ def merge(dzi_paths, destination):
     start = time.time()
     # first create directories
     if not os.path.isdir(files_dir):
-        os.mkdir(files_dir)
+        os.makedirs(files_dir)
     for level in range(tot_levels + 1):
         new_dir = os.path.join(files_dir, str(level))
         if not os.path.isdir(new_dir):
-            os.mkdir(new_dir)
+            os.makedirs(new_dir)
     level = tot_levels
     files_operations = 0
     while level >= cross_level:
@@ -181,5 +181,17 @@ def merge(dzi_paths, destination):
     dzi_info_out['width'] = res_x
     dzi_info_out['height'] = res_y
     XMLwrite(dzi_info_out, destination + '.dzi', dzi_paths[0] + '.dzi')
-#dzi_filenames = ['test\\20210612_147megapixels\\dzi_temp\\0_0', 'test\\20210612_147megapixels\\dzi_temp\\1_0', 'test\\20210612_147megapixels\\dzi_temp\\2_0']
-#merge(dzi_filenames, dzi_out)
+#dzi_filenames = ['c:\\Users\\k\\Panorama_Stitching\\20210618\\dzi_temp\\0_0', 'c:\\Users\\k\\Panorama_Stitching\\20210618\\dzi_temp\\0_1',
+#    'c:\\Users\\k\\Panorama_Stitching\\20210618\\dzi_temp\\1_0', 'c:\\Users\\k\\Panorama_Stitching\\20210618\\dzi_temp\\1_1',
+#    'c:\\Users\\k\\Panorama_Stitching\\20210618\\dzi_temp\\2_0', 'c:\\Users\\k\\Panorama_Stitching\\20210618\\dzi_temp\\2_1']
+#final_dzi_out = os.path.join('c:', os.sep, 'Users','k','Panorama_Stitching',
+#    '20210618','PTtoDZI','LincolnLakeAuto')
+#merge(dzi_filenames, final_dzi_out)
+
+def shift_folders(path_in, shift):
+    subdirnames = [os.path.basename(x[0]) for x in os.walk(path_in + '_files')]
+    subdirnames.pop(0)
+    source_levels = max(int(x) for x in subdirnames)
+    for level in range(source_levels, 0, -1):
+        os.rename(os.path.join(path_in + '_files', str(level)),
+            os.path.join(path_in + '_files', str(level + shift)))

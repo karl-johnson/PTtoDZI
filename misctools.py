@@ -11,4 +11,4 @@ def getTilingRegions(x_size, y_size, tile_size):
             x_end = min((col+1)*tile_size, x_size) # limit to region
             y_end = min((row+1)*tile_size, y_size)
             output.append([x_start, y_start, x_end-x_start, y_end-y_start])
-    return output, num_x
+    return output
